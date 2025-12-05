@@ -45,3 +45,17 @@ db.collection("posts").orderBy("timestamp", "desc").onSnapshot(snapshot => {
     feed.appendChild(postEl);
   });
 });
+
+.oinkBtn {
+  background: #ffcccb;
+  border: 1px solid #ff6b6b;
+  border-radius: 5px;
+  padding: 0.3rem 0.5rem;
+  margin-top: 0.3rem;
+  cursor: pointer;
+}
+
+.oinkBtn:hover {
+  background: #ff6b6b;
+  color: white;
+}
