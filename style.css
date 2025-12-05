@@ -1,68 +1,47 @@
-body {
-  font-family: 'Comic Sans MS', sans-serif;
-  background: #ffe5d9;
-  margin: 0;
-  padding: 0;
+// ====== Replace with your Firebase config ======
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /posts/{postId} {
+      allow read, write: if true;
+    }
+  }
 }
 
-header {
-  background: #ff6b6b;
-  color: white;
-  text-align: center;
-  padding: 1rem;
-}
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-h1 {
-  margin: 0;
-  font-size: 2rem;
-}
+// DOM elements
+const postBtn = document.getElementById("postBtn");
+const postText = document.getElementById("postText");
+const postCategory = document.getElementById("postCategory");
+const feed = document.getElementById("feed");
 
-main {
-  padding: 1rem;
-}
+// Post button click
+postBtn.addEventListener("click", () => {
+  const text = postText.value.trim();
+  const category = postCategory.value;
 
-#postForm {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 2rem;
-}
+  if(text === "") return;
 
-#postText {
-  padding: 0.5rem;
-  font-size: 1rem;
-  margin-bottom: 0.5rem;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-}
+  db.collection("posts").add({
+    text,
+    category,
+    timestamp: Date.now()
+  });
 
-#postCategory {
-  margin-bottom: 0.5rem;
-  padding: 0.5rem;
-  font-size: 1rem;
-}
+  postText.value = "";
+});
 
-#postBtn {
-  padding: 0.5rem;
-  background: #ff6b6b;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-#postBtn:hover {
-  background: #ff3b3b;
-}
-
-.post {
-  background: #fff3f3;
-  border: 1px solid #ff6b6b;
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
-  border-radius: 5px;
-}
-
-.post .category {
-  font-weight: bold;
-  color: #ff6b6b;
-}
+// Real-time listener
+db.collection("posts").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+  feed.innerHTML = "";
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    const postEl = document.createElement("div");
+    postEl.classList.add("post");
+    postEl.innerHTML = `<span class="category">[${data.category}]</span> ${data.text}`;
+    feed.appendChild(postEl);
+  });
+});
