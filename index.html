@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hog Social</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <header>
+    <h1>🐷 Hog Social 🐷</h1>
+  </header>
+
+  <main>
+    <div id="postForm">
+      <textarea id="postText" placeholder="Write your hoggy thoughts..."></textarea>
+      <select id="postCategory">
+        <option value="Top Hog">Top Hog</option>
+        <option value="Trough">Trough</option>
+        <option value="Grunt">Grunt</option>
+        <option value="Oink">Oink</option>
+        <option value="Slop">Slop</option>
+        <option value="Hogwash">Hogwash</option>
+      </select>
+      <button id="postBtn">Post</button>
+    </div>
+
+    <div id="feed">
+      <!-- Posts will appear here -->
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
