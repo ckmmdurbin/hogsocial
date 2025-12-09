@@ -1,38 +1,99 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hog Social</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <title>Hog Social 🐷</title>
+  <style>
+    body {
+      background-color: #ffd6e6;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    h1 { text-align: center; }
+    #postBox {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+    }
+    button {
+      background-color: #8b5e3c;
+      color: white;
+      padding: 10px;
+      border: none;
+      cursor: pointer;
+      border-radius: 10px;
+      margin-top: 5px;
+    }
+    .post {
+      background: white;
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 10px;
+    }
+    .oink {
+      font-size: 18px;
+      cursor: pointer;
+      margin-top: 5px;
+    }
+  </style>
 </head>
 <body>
-  <header>
-    <h1>🐷 Hog Social 🐷</h1>
-  </header>
 
-  <main>
-    <div id="postForm">
-      <textarea id="postText" placeholder="Write your hoggy thoughts..."></textarea>
-      <select id="postCategory">
-        <option value="Top Hog">Top Hog</option>
-        <option value="Trough">Trough</option>
-        <option value="Grunt">Grunt</option>
-        <option value="Oink">Oink</option>
-        <option value="Slop">Slop</option>
-        <option value="Hogwash">Hogwash</option>
-      </select>
-      <button id="postBtn">Post</button>
-    </div>
+<h1>🐷 Hog Social</h1>
+<h2>Welcome to The Trough</h2>
 
-    <div id="feed">
-      <!-- Posts will appear here -->
-    </div>
-  </main>
+<input id="username" placeholder="Your hog name..." />
+<br><br>
+<textarea id="postBox" placeholder="Drop slop in the trough..."></textarea>
+<br>
+<button onclick="addPost()">Post to the Trough</button>
 
-  <script src="script.js"></script>
+<div id="feed"></div>
+
+<script>
+  let posts = JSON.parse(localStorage.getItem('posts')) || [];
+
+  function savePosts() {
+    localStorage.setItem('posts', JSON.stringify(posts));
+  }
+
+  function addPost() {
+    const user = document.getElementById('username').value || "Anonymous Hog";
+    const text = document.getElementById('postBox').value;
+    if (!text) return;
+
+    posts.unshift({
+      user,
+      text,
+      oinks: 0
+    });
+
+    savePosts();
+    render();
+    document.getElementById('postBox').value = "";
+  }
+
+  function oink(index) {
+    posts[index].oinks++;
+    savePosts();
+    render();
+  }
+
+  function render() {
+    const feed = document.getElementById('feed');
+    feed.innerHTML = '';
+    posts.forEach((post, index) => {
+      feed.innerHTML += `
+        <div class="post">
+          <strong>${post.user}</strong><br>
+          ${post.text}<br>
+          <div class="oink" onclick="oink(${index})">🐷 ${post.oinks} oinks</div>
+        </div>
+      `;
+    });
+  }
+
+  render();
+</script>
+
 </body>
 </html>
