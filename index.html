@@ -1,17 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Hog Social 🐷</title>
+  <title>🐷 Hog Social 🐷</title>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
   <style>
     body {
       background-color: #ffd6e6;
       font-family: Arial, sans-serif;
       padding: 20px;
     }
-    h1 { text-align: center; }
-    #postBox {
+    h1, h2 { text-align: center; }
+    input, textarea {
       width: 100%;
       padding: 10px;
+      margin-top: 10px;
       font-size: 16px;
     }
     button {
@@ -19,9 +26,9 @@
       color: white;
       padding: 10px;
       border: none;
-      cursor: pointer;
+      margin-top: 10px;
       border-radius: 10px;
-      margin-top: 5px;
+      cursor: pointer;
     }
     .post {
       background: white;
@@ -42,57 +49,71 @@
 <h2>Welcome to The Trough</h2>
 
 <input id="username" placeholder="Your hog name..." />
-<br><br>
 <textarea id="postBox" placeholder="Drop slop in the trough..."></textarea>
-<br>
 <button onclick="addPost()">Post to the Trough</button>
 
 <div id="feed"></div>
 
 <script>
-  let posts = JSON.parse(localStorage.getItem('posts')) || [];
+  // 1. PASTE YOUR FIREBASE CONFIG HERE
+  const firebaseConfig = {
+    apiKey: "PASTE_HERE",
+    authDomain: "PASTE_HERE",
+    projectId: "PASTE_HERE",
+    storageBucket: "PASTE_HERE",
+    messagingSenderId: "PASTE_HERE",
+    appId: "PASTE_HERE"
+  };
 
-  function savePosts() {
-    localStorage.setItem('posts', JSON.stringify(posts));
-  }
+  firebase.initializeApp(firebaseConfig);
+
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+
+  auth.signInAnonymously();
 
   function addPost() {
     const user = document.getElementById('username').value || "Anonymous Hog";
     const text = document.getElementById('postBox').value;
     if (!text) return;
 
-    posts.unshift({
-      user,
-      text,
-      oinks: 0
+    db.collection("posts").add({
+      user: user,
+      text: text,
+      oinks: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    savePosts();
-    render();
     document.getElementById('postBox').value = "";
   }
 
-  function oink(index) {
-    posts[index].oinks++;
-    savePosts();
-    render();
-  }
-
-  function render() {
-    const feed = document.getElementById('feed');
-    feed.innerHTML = '';
-    posts.forEach((post, index) => {
-      feed.innerHTML += `
-        <div class="post">
-          <strong>${post.user}</strong><br>
-          ${post.text}<br>
-          <div class="oink" onclick="oink(${index})">🐷 ${post.oinks} oinks</div>
-        </div>
-      `;
+  function oink(id, currentOinks) {
+    db.collection("posts").doc(id).update({
+      oinks: currentOinks + 1
     });
   }
 
-  render();
+  db.collection("posts")
+    .orderBy("createdAt", "desc")
+    .onSnapshot((snapshot) => {
+      const feed = document.getElementById('feed');
+      feed.innerHTML = "";
+
+      snapshot.forEach((doc) => {
+        const post = doc.data();
+        const postId = doc.id;
+
+        feed.innerHTML += `
+          <div class="post">
+            <strong>${post.user}</strong><br>
+            ${post.text}<br>
+            <div class="oink" onclick="oink('${postId}', ${post.oinks || 0})">
+              🐷 ${post.oinks || 0} oinks
+            </div>
+          </div>
+        `;
+      });
+    });
 </script>
 
 </body>
