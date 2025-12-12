@@ -48,35 +48,6 @@
       padding: 6px;
       border-radius: 8px;
     }
-    #notificationPanel {
-      display: none;
-      position: fixed;
-      top: 50px;
-      right: 10px;
-      background: white;
-      border: 1px solid #ccc;
-      padding: 10px;
-      width: 300px;
-      max-height: 350px;
-      overflow: auto;
-      border-radius: 8px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-    }
-    #notificationBell {
-      cursor: pointer;
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      font-size: 22px;
-    }
-    #notifCount {
-      display: none;
-      font-size: 12px;
-      color: white;
-      background: red;
-      border-radius: 10px;
-      padding: 1px 6px;
-    }
     .topHog {
       background: #ffb3cc; /* Soft pink for TOP HOG */
       padding: 10px;
@@ -108,18 +79,15 @@
 </head>
 <body>
 
-<div id="notificationBell">🔔 <span id="notifCount"></span></div>
-<div id="notificationPanel"></div>
-
 <h1>🐷 Hog Social</h1>
 <h2>The Trough</h2>
 
 <input id="username" placeholder="Your hog name..." />
 <textarea id="postBox" placeholder="Drop slop in the trough..."></textarea>
+<input id="postImage" placeholder="Paste image URL here (optional)" />
 <button onclick="addPost()">Post to the Trough</button>
 
 <div class="topHog" id="topHog">TOP HOG: Loading...</div>
-
 <div id="feed"></div>
 
 <script>
@@ -149,80 +117,31 @@
     return div.innerHTML;
   }
 
-  // ---- Notifications ----
-  function sendNotification(targetUser, message) {
-    if (!targetUser) return;
-    const notifRef = db.collection("notifications").doc(targetUser).collection("userNotifications");
-    notifRef.add({
-      message: message,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(err => console.error("Notification send error:", err));
+  function linkify(text) {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return text.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`);
   }
-
-  function listenForNotifications(usernameToListen) {
-    if (!usernameToListen) return;
-    const notifRef = db.collection("notifications").doc(usernameToListen).collection("userNotifications");
-
-    if (window._hog_notif_unsub) {
-      try { window._hog_notif_unsub(); } catch(e) {}
-      window._hog_notif_unsub = null;
-    }
-
-    window._hog_notif_unsub = notifRef.orderBy("timestamp", "desc").onSnapshot(snapshot => {
-      const notifPanel = document.getElementById("notificationPanel");
-      const notifCount = document.getElementById("notifCount");
-      notifPanel.innerHTML = "";
-      let count = 0;
-      snapshot.forEach(doc => {
-        const d = doc.data();
-        const dateStr = d.timestamp ? d.timestamp.toDate().toLocaleString() : "";
-        const item = document.createElement("div");
-        item.style.padding = "8px";
-        item.style.borderBottom = "1px solid #eee";
-        item.innerHTML = `<div>${escapeHtml(d.message)}</div><div style="font-size:12px;color:#666">${dateStr}</div>`;
-        notifPanel.appendChild(item);
-        count++;
-      });
-      if (count > 0) {
-        notifCount.style.display = "inline-block";
-        notifCount.textContent = count;
-      } else {
-        notifCount.style.display = "none";
-        notifCount.textContent = "";
-      }
-    }, err => console.error("Notif listen error:", err));
-  }
-
-  document.getElementById("notificationBell").onclick = () => {
-    const panel = document.getElementById("notificationPanel");
-    panel.style.display = panel.style.display === "block" ? "none" : "block";
-  };
 
   // ---- Post Functions ----
   function addPost() {
-    const text = document.getElementById('postBox').value;
-    if (!text.trim()) return;
+    const text = document.getElementById('postBox').value.trim();
+    const imageUrl = document.getElementById('postImage').value.trim();
+    if (!text && !imageUrl) return;
+
     const user = localUsername || "Anonymous Hog";
 
     db.collection("posts").add({
       user: user,
-      text: text,
+      text: text || "",
+      image: imageUrl || null,
       oinks: 0,
       boars: 0,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     })
     .then(() => {
       document.getElementById('postBox').value = "";
+      document.getElementById('postImage').value = "";
       updateTopHog();
-      db.collection("users").get()
-        .then(snapshot => {
-          snapshot.forEach(uDoc => {
-            const target = uDoc.id;
-            if (target && target !== user) {
-              sendNotification(target, `${user} posted something new in the Trough! 🐖`);
-            }
-          });
-        }).catch(err => console.error("Notification error:", err));
     })
     .catch(err => console.error("Add post error:", err));
   }
@@ -231,27 +150,18 @@
     const postRef = db.collection("posts").doc(id);
     postRef.get().then(doc => {
       if (!doc.exists) return;
-      const data = doc.data();
-      const owner = data.user;
       postRef.update({ oinks: (currentOinks || 0) + 1 })
-        .then(() => {
-          if (owner) sendNotification(owner, `${localUsername || 'Someone'} oinked your post! 🐷`);
-          updateTopHog();
-        });
-    }).catch(err => console.error("Oink error:", err));
+        .then(() => { updateTopHog(); });
+    }).catch(err => console.error(err));
   }
 
   function boar(id, currentBoars) {
     const postRef = db.collection("posts").doc(id);
     postRef.get().then(doc => {
       if (!doc.exists) return;
-      const data = doc.data();
-      const owner = data.user;
       postRef.update({ boars: (currentBoars || 0) + 1 })
-        .then(() => {
-          if (owner) sendNotification(owner, `${localUsername || 'Someone'} boared your post! 🐗`);
-        });
-    }).catch(err => console.error("Boar error:", err));
+        .catch(err => console.error(err));
+    });
   }
 
   // ---- Replies ----
@@ -275,15 +185,6 @@
     .then(() => {
       textInput.value = "";
       userInput.value = "";
-
-      db.collection("posts").doc(postId).get().then(doc => {
-        if (doc.exists) {
-          const owner = doc.data().user;
-          if (owner && owner !== replyUser) {
-            sendNotification(owner, `${replyUser} replied to your post! 🐖`);
-          }
-        }
-      });
     })
     .catch(err => console.error("Add reply error:", err));
   }
@@ -306,7 +207,8 @@
           feed.innerHTML += `
             <div class="post">
               <strong>${escapeHtml(post.user || 'Anonymous Hog')}</strong><br>
-              <div>${escapeHtml(post.text || '')}</div>
+              <div>${linkify(escapeHtml(post.text || ''))}</div>
+              ${post.image ? `<div style="margin-top:8px;"><img src="${post.image}" style="max-width:100%; border-radius:8px;"></div>` : ''}
               <div style="margin-top:6px; font-size:12px; color:#555;">${timeStr}</div>
               <div style="margin-top:8px;">
                 <span class="oink" onclick="oink('${postId}', ${post.oinks || 0})" title="Oink (upvote)">
@@ -340,7 +242,7 @@
                 try { if (r.createdAt) rTime = r.createdAt.toDate().toLocaleString(); } catch(e) {}
                 replyDiv.innerHTML += `
                   <div class="reply">
-                    <strong>${escapeHtml(r.user || 'Anonymous Hog')}</strong>: ${escapeHtml(r.text)}<br>
+                    <strong>${escapeHtml(r.user || 'Anonymous Hog')}</strong>: ${linkify(escapeHtml(r.text))}<br>
                     <span style="font-size:11px; color:#666;">${rTime}</span>
                   </div>
                 `;
@@ -376,7 +278,6 @@
 
   // ---- Initialize ----
   updateFeed();
-  listenForNotifications(localUsername);
 </script>
 
 </body>
