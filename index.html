@@ -94,33 +94,34 @@ const firebaseConfig = {
   auth.signInAnonymously();
 
   function addPost() {
-    const user = document.getElementById('username').value || "Anonymous Hog";
-    const text = document.getElementById('postBox').value;
-    if (!text) return;
+  const text = document.getElementById('postBox').value;
+  if (!text.trim()) return;
+
+  const user = localUsername || "Anonymous Hog";
 
   db.collection("posts").add({
-  user: user,
-  text: text,
-  oinks: 0,
-  boars: 0, // new downvote field
-  createdAt: firebase.firestore.FieldValue.serverTimestamp()
-})
-.then(() => {
-  // Clear the post input box
-  document.getElementById('postBox').value = "";
+    user: user,
+    text: text,
+    oinks: 0,
+    boars: 0,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  })
+  .then(() => {
+    // Clear input box
+    document.getElementById('postBox').value = "";
 
-  // Notify all other users about the new post
-  db.collection("users").get().then(snapshot => {
-    snapshot.forEach(uDoc => {
-      const target = uDoc.id;
-      if (target && target !== user) {
-        sendNotification(target, `${user} posted something new in the Trough! 🐖`);
-      }
-    });
-  }).catch(err => console.error("Notification error:", err));
-})
-.catch(err => console.error(err));
-
+    // Notify other users
+    db.collection("users").get().then(snapshot => {
+      snapshot.forEach(uDoc => {
+        const target = uDoc.id;
+        if (target && target !== user) {
+          sendNotification(target, `${user} posted something new in the Trough! 🐖`);
+        }
+      });
+    }).catch(err => console.error("Notification error:", err));
+  })
+  .catch(err => console.error("Add post error:", err));
+}
 
  function oink(id, currentOinks) {
   const postRef = db.collection("posts").doc(id);
