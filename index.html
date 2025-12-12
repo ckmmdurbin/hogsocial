@@ -77,12 +77,13 @@ const firebaseConfig = {
     const text = document.getElementById('postBox').value;
     if (!text) return;
 
-    db.collection("posts").add({
-      user: user,
-      text: text,
-      oinks: 0,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+   db.collection("posts").add({
+  user: user,
+  text: text,
+  oinks: 0,
+  boars: 0, // new downvote field
+  createdAt: firebase.firestore.FieldValue.serverTimestamp()
+});
 
     document.getElementById('postBox').value = "";
   }
