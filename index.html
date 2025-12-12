@@ -41,6 +41,13 @@
       cursor: pointer;
       margin-top: 5px;
     }
+    .reply {
+      background: #f2f2f2;
+      margin-left: 20px;
+      margin-top: 6px;
+      padding: 6px;
+      border-radius: 8px;
+    }
     #notificationPanel {
       display: none;
       position: fixed;
@@ -70,6 +77,28 @@
       border-radius: 10px;
       padding: 1px 6px;
     }
+    .topHog {
+      background: #fff2cc;
+      padding: 10px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .replyBox {
+      margin-left: 20px;
+      margin-top: 5px;
+    }
+    .replyBox input {
+      width: 70%;
+      padding: 6px;
+      margin-right: 5px;
+      font-size: 14px;
+    }
+    .replyBox button {
+      padding: 6px 10px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -78,11 +107,13 @@
 <div id="notificationPanel"></div>
 
 <h1>🐷 Hog Social</h1>
-<h2>Welcome to The Trough</h2>
+<h2>The Trough</h2>
 
 <input id="username" placeholder="Your hog name..." />
 <textarea id="postBox" placeholder="Drop slop in the trough..."></textarea>
 <button onclick="addPost()">Post to the Trough</button>
+
+<div class="topHog" id="topHog">TOP HOG: Loading...</div>
 
 <div id="feed"></div>
 
@@ -101,15 +132,12 @@
   const auth = firebase.auth();
   auth.signInAnonymously();
 
-  // ---- Variables ----
   let localUsername = "";
 
-  // ---- Update username from input ----
   document.getElementById('username').addEventListener('input', (e) => {
     localUsername = e.target.value.trim() || "Anonymous Hog";
   });
 
-  // ---- Utility ----
   function escapeHtml(text) {
     const div = document.createElement("div");
     div.innerText = text;
@@ -165,7 +193,7 @@
     panel.style.display = panel.style.display === "block" ? "none" : "block";
   };
 
-  // ---- Posting ----
+  // ---- Post Functions ----
   function addPost() {
     const text = document.getElementById('postBox').value;
     if (!text.trim()) return;
@@ -181,8 +209,8 @@
     })
     .then(() => {
       document.getElementById('postBox').value = "";
+      updateTopHog();
 
-      // Notify other users
       db.collection("users").get()
         .then(snapshot => {
           snapshot.forEach(uDoc => {
@@ -196,7 +224,6 @@
     .catch(err => console.error("Add post error:", err));
   }
 
-  // ---- Oink / Boar ----
   function oink(id, currentOinks) {
     const postRef = db.collection("posts").doc(id);
     postRef.get().then(doc => {
@@ -207,6 +234,7 @@
       postRef.update({ oinks: (currentOinks || 0) + 1 })
         .then(() => {
           if (owner) sendNotification(owner, `${localUsername || 'Someone'} oinked your post! 🐷`);
+          updateTopHog();
         });
     }).catch(err => console.error("Oink error:", err));
   }
@@ -225,42 +253,125 @@
     }).catch(err => console.error("Boar error:", err));
   }
 
-  // ---- Display Feed ----
-  db.collection("posts")
-    .orderBy("createdAt", "desc")
-    .onSnapshot(snapshot => {
-      const feed = document.getElementById('feed');
-      feed.innerHTML = "";
+  // ---- Replies ----
+  function showReplyBox(postId) {
+    const replyDiv = document.getElementById(`replyDiv-${postId}`);
+    replyDiv.style.display = replyDiv.style.display === "block" ? "none" : "block";
+  }
 
-      snapshot.forEach(doc => {
-        const post = doc.data();
-        const postId = doc.id;
+  function addReply(postId) {
+    const input = document.getElementById(`replyInput-${postId}`);
+    const text = input.value.trim();
+    if (!text) return;
 
-        let timeStr = "";
-        try {
-          if (post.createdAt) timeStr = post.createdAt.toDate().toLocaleString();
-        } catch(e) { timeStr = ""; }
+    const user = localUsername || "Anonymous Hog";
 
-        feed.innerHTML += `
-          <div class="post">
-            <strong>${escapeHtml(post.user || 'Anonymous Hog')}</strong><br>
-            <div>${escapeHtml(post.text || '')}</div>
-            <div style="margin-top:6px; font-size:12px; color:#555;">${timeStr}</div>
-            <div style="margin-top:8px;">
-              <span class="oink" onclick="oink('${postId}', ${post.oinks || 0})" title="Oink (upvote)">
-                🐷 ${post.oinks || 0} oinks
-              </span>
-              &nbsp;&nbsp;
-              <span class="oink" onclick="boar('${postId}', ${post.boars || 0})" title="Boar (downvote)">
-                🐗 ${post.boars || 0} boars
-              </span>
-            </div>
-          </div>
-        `;
+    db.collection("posts").doc(postId).collection("replies").add({
+      user: user,
+      text: text,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    .then(() => {
+      input.value = "";
+
+      db.collection("posts").doc(postId).get().then(doc => {
+        if (doc.exists) {
+          const owner = doc.data().user;
+          if (owner && owner !== user) {
+            sendNotification(owner, `${user} replied to your post! 🐖`);
+          }
+        }
       });
-    });
+    })
+    .catch(err => console.error("Add reply error:", err));
+  }
 
-  // ---- Start notifications ----
+  // ---- Display Feed & Replies ----
+  function updateFeed() {
+    db.collection("posts")
+      .orderBy("createdAt", "desc")
+      .onSnapshot(snapshot => {
+        const feed = document.getElementById('feed');
+        feed.innerHTML = "";
+
+        snapshot.forEach(doc => {
+          const post = doc.data();
+          const postId = doc.id;
+
+          let timeStr = "";
+          try { if (post.createdAt) timeStr = post.createdAt.toDate().toLocaleString(); } catch(e) { timeStr = ""; }
+
+          feed.innerHTML += `
+            <div class="post">
+              <strong>${escapeHtml(post.user || 'Anonymous Hog')}</strong><br>
+              <div>${escapeHtml(post.text || '')}</div>
+              <div style="margin-top:6px; font-size:12px; color:#555;">${timeStr}</div>
+              <div style="margin-top:8px;">
+                <span class="oink" onclick="oink('${postId}', ${post.oinks || 0})" title="Oink (upvote)">
+                  🐷 ${post.oinks || 0} oinks
+                </span>
+                &nbsp;&nbsp;
+                <span class="oink" onclick="boar('${postId}', ${post.boars || 0})" title="Boar (downvote)">
+                  🐗 ${post.boars || 0} boars
+                </span>
+                &nbsp;&nbsp;
+                <button onclick="showReplyBox('${postId}')">Reply</button>
+              </div>
+              <div id="replyDiv-${postId}" class="replyBox" style="display:none;">
+                <input id="replyInput-${postId}" placeholder="Write a reply..." />
+                <button onclick="addReply('${postId}')">Send</button>
+              </div>
+              <div id="replies-${postId}"></div>
+            </div>
+          `;
+
+          db.collection("posts").doc(postId).collection("replies")
+            .orderBy("createdAt", "asc")
+            .onSnapshot(replySnapshot => {
+              const replyDiv = document.getElementById(`replies-${postId}`);
+              replyDiv.innerHTML = "";
+              replySnapshot.forEach(rDoc => {
+                const r = rDoc.data();
+                let rTime = "";
+                try { if (r.createdAt) rTime = r.createdAt.toDate().toLocaleString(); } catch(e) {}
+                replyDiv.innerHTML += `
+                  <div class="reply">
+                    <strong>${escapeHtml(r.user || 'Anonymous Hog')}</strong>: ${escapeHtml(r.text)}<br>
+                    <span style="font-size:11px; color:#666;">${rTime}</span>
+                  </div>
+                `;
+              });
+            });
+        });
+        updateTopHog();
+      });
+  }
+
+  // ---- Top Hog ----
+  function updateTopHog() {
+    db.collection("posts")
+      .get()
+      .then(snapshot => {
+        const scores = {};
+        snapshot.forEach(doc => {
+          const p = doc.data();
+          const u = p.user || "Anonymous Hog";
+          scores[u] = (scores[u] || 0) + (p.oinks || 0);
+        });
+        let topUser = "No posts yet";
+        let maxOinks = 0;
+        for (const [user, score] of Object.entries(scores)) {
+          if (score > maxOinks) {
+            maxOinks = score;
+            topUser = user;
+          }
+        }
+        document.getElementById('topHog').textContent = `TOP HOG: ${topUser} (${maxOinks} oinks)`;
+      });
+  }
+
+  // ---- Initialize ----
+  updateFeed();
   listenForNotifications(localUsername);
 </script>
 
