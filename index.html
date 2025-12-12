@@ -93,7 +93,7 @@ const firebaseConfig = {
 
   auth.signInAnonymously();
 
-  function addPost() {
+ function addPost() {
   const text = document.getElementById('postBox').value;
   if (!text.trim()) return;
 
@@ -111,17 +111,20 @@ const firebaseConfig = {
     document.getElementById('postBox').value = "";
 
     // Notify other users
-    db.collection("users").get().then(snapshot => {
-      snapshot.forEach(uDoc => {
-        const target = uDoc.id;
-        if (target && target !== user) {
-          sendNotification(target, `${user} posted something new in the Trough! 🐖`);
-        }
-      });
-    }).catch(err => console.error("Notification error:", err));
+    db.collection("users").get()
+      .then(snapshot => {
+        snapshot.forEach(uDoc => {
+          const target = uDoc.id;
+          if (target && target !== user) {
+            sendNotification(target, `${user} posted something new in the Trough! 🐖`);
+          }
+        });
+      })
+      .catch(err => console.error("Notification error:", err));
   })
   .catch(err => console.error("Add post error:", err));
 }
+
 
  function oink(id, currentOinks) {
   const postRef = db.collection("posts").doc(id);
