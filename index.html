@@ -41,6 +41,16 @@
       cursor: pointer;
       margin-top: 5px;
     }
+    function boar(id, currentBoars) {
+  const postRef = db.collection("posts").doc(id);
+  postRef.get().then(doc => {
+    if (!doc.exists) return;
+    postRef.update({
+      boars: (currentBoars || 0) + 1
+    });
+  }).catch(err => console.error("Boar error:", err));
+}
+
   </style>
 </head>
 <body>
@@ -112,17 +122,16 @@ try {
 feed.innerHTML += `
   <div class="post">
     <strong>${escapeHtml(post.user || 'Anonymous Hog')}</strong><br>
-    <div style="margin-top:6px;">${escapeHtml(post.text || '')}</div>
-
-    <div class="timestamp">${timeStr}</div>
-
     <div style="margin-top:8px;">
-      <span class="oink" onclick="oink('${postId}', ${post.oinks || 0})" title="Oink (upvote)">
-        🐷 ${post.oinks || 0} oinks
-      </span>
-    </div>
-  </div>
-`;
+  <span class="oink" onclick="oink('${postId}', ${post.oinks || 0})" title="Oink (upvote)">
+    🐷 ${post.oinks || 0} oinks
+  </span>
+
+  <span class="oink" onclick="boar('${postId}', ${post.boars || 0})" title="Boar (downvote)">
+    🐗 ${post.boars || 0} boars
+  </span>
+</div>
+
 
 </script>
 
