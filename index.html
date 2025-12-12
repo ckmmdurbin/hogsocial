@@ -41,20 +41,31 @@
       cursor: pointer;
       margin-top: 5px;
     }
-    function boar(id, currentBoars) {
+   function boar(id, currentBoars) {
   const postRef = db.collection("posts").doc(id);
   postRef.get().then(doc => {
     if (!doc.exists) return;
-    postRef.update({
-      boars: (currentBoars || 0) + 1
-    });
+    const data = doc.data();
+    const owner = data.user;
+
+    postRef.update({ boars: (currentBoars || 0) + 1 })
+      .then(() => {
+        if (owner) sendNotification(owner, `${localUsername || 'Someone'} boared your post! 🐗`);
+      });
   }).catch(err => console.error("Boar error:", err));
 }
 
   </style>
 </head>
 <body>
+<div id="notificationBell" style="cursor:pointer; position:fixed; top:10px; right:10px; font-size:22px;">
+  🔔 <span id="notifCount" style="display:none; font-size:12px; color:white; background:red; border-radius:10px; padding:1px 6px;"></span>
+</div>
 
+<div id="notificationPanel" style="display:none; position:fixed; top:50px; right:10px; background:white; border:1px solid #ccc; padding:10px; width:300px; max-height:350px; overflow:auto; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.12);"></div>
+
+  
+  
 <h1>🐷 Hog Social</h1>
 <h2>Welcome to The Trough</h2>
 
@@ -87,22 +98,43 @@ const firebaseConfig = {
     const text = document.getElementById('postBox').value;
     if (!text) return;
 
-   db.collection("posts").add({
+  db.collection("posts").add({
   user: user,
   text: text,
   oinks: 0,
   boars: 0, // new downvote field
   createdAt: firebase.firestore.FieldValue.serverTimestamp()
-});
+})
+.then(() => {
+  // Clear the post input box
+  document.getElementById('postBox').value = "";
 
-    document.getElementById('postBox').value = "";
-  }
-
-  function oink(id, currentOinks) {
-    db.collection("posts").doc(id).update({
-      oinks: currentOinks + 1
+  // Notify all other users about the new post
+  db.collection("users").get().then(snapshot => {
+    snapshot.forEach(uDoc => {
+      const target = uDoc.id;
+      if (target && target !== user) {
+        sendNotification(target, `${user} posted something new in the Trough! 🐖`);
+      }
     });
-  }
+  }).catch(err => console.error("Notification error:", err));
+})
+.catch(err => console.error(err));
+
+
+ function oink(id, currentOinks) {
+  const postRef = db.collection("posts").doc(id);
+  postRef.get().then(doc => {
+    if (!doc.exists) return;
+    const data = doc.data();
+    const owner = data.user;
+
+    postRef.update({ oinks: (currentOinks || 0) + 1 })
+      .then(() => {
+        if (owner) sendNotification(owner, `${localUsername || 'Someone'} oinked your post! 🐷`);
+      });
+  }).catch(err => console.error(err));
+}
 
   db.collection("posts")
     .orderBy("createdAt", "desc")
@@ -132,8 +164,56 @@ feed.innerHTML += `
   </span>
 </div>
 
+function sendNotification(targetUser, message) {
+  if (!targetUser) return;
+  const notifRef = db.collection("notifications").doc(targetUser).collection("userNotifications");
+  notifRef.add({
+    message: message,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(err => console.error("Notification send error:", err));
+}
+
+function listenForNotifications(usernameToListen) {
+  if (!usernameToListen) return;
+  const notifRef = db.collection("notifications").doc(usernameToListen).collection("userNotifications");
+
+  if (window._hog_notif_unsub) {
+    try { window._hog_notif_unsub(); } catch(e) {}
+    window._hog_notif_unsub = null;
+  }
+
+  window._hog_notif_unsub = notifRef.orderBy("timestamp", "desc").onSnapshot(snapshot => {
+    const notifPanel = document.getElementById("notificationPanel");
+    const notifCount = document.getElementById("notifCount");
+    notifPanel.innerHTML = "";
+    let count = 0;
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      const dateStr = d.timestamp ? d.timestamp.toDate().toLocaleString() : "";
+      const item = document.createElement("div");
+      item.style.padding = "8px";
+      item.style.borderBottom = "1px solid #eee";
+      item.innerHTML = `<div>${escapeHtml(d.message)}</div><div style="font-size:12px;color:#666">${dateStr}</div>`;
+      notifPanel.appendChild(item);
+      count++;
+    });
+    if (count > 0) {
+      notifCount.style.display = "inline-block";
+      notifCount.textContent = count;
+    } else {
+      notifCount.style.display = "none";
+      notifCount.textContent = "";
+    }
+  }, err => console.error("Notif listen error:", err));
+}
+
+document.getElementById("notificationBell").onclick = () => {
+  const panel = document.getElementById("notificationPanel");
+  panel.style.display = panel.style.display === "block" ? "none" : "block";
+};
+
 
 </script>
-
+  
 </body>
 </html>
