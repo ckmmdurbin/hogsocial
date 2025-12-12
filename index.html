@@ -42,7 +42,7 @@
       margin-top: 5px;
     }
     .reply {
-      background: #f2f2f2;
+      background: #ffe6f0; /* Soft pink for replies */
       margin-left: 20px;
       margin-top: 6px;
       padding: 6px;
@@ -78,7 +78,7 @@
       padding: 1px 6px;
     }
     .topHog {
-      background: #fff2cc;
+      background: #ffb3cc; /* Soft pink for TOP HOG */
       padding: 10px;
       border-radius: 10px;
       margin-bottom: 10px;
@@ -90,7 +90,13 @@
       margin-top: 5px;
     }
     .replyBox input {
-      width: 70%;
+      width: 65%;
+      padding: 6px;
+      margin-right: 5px;
+      font-size: 14px;
+    }
+    .replyBox .replyUser {
+      width: 25%;
       padding: 6px;
       margin-right: 5px;
       font-size: 14px;
@@ -260,25 +266,26 @@
   }
 
   function addReply(postId) {
-    const input = document.getElementById(`replyInput-${postId}`);
-    const text = input.value.trim();
+    const userInput = document.getElementById(`replyUser-${postId}`);
+    const textInput = document.getElementById(`replyInput-${postId}`);
+    const replyUser = userInput.value.trim() || "Anonymous Hog";
+    const text = textInput.value.trim();
     if (!text) return;
 
-    const user = localUsername || "Anonymous Hog";
-
     db.collection("posts").doc(postId).collection("replies").add({
-      user: user,
+      user: replyUser,
       text: text,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     })
     .then(() => {
-      input.value = "";
+      textInput.value = "";
+      userInput.value = "";
 
       db.collection("posts").doc(postId).get().then(doc => {
         if (doc.exists) {
           const owner = doc.data().user;
-          if (owner && owner !== user) {
-            sendNotification(owner, `${user} replied to your post! 🐖`);
+          if (owner && owner !== replyUser) {
+            sendNotification(owner, `${replyUser} replied to your post! 🐖`);
           }
         }
       });
@@ -318,6 +325,7 @@
                 <button onclick="showReplyBox('${postId}')">Reply</button>
               </div>
               <div id="replyDiv-${postId}" class="replyBox" style="display:none;">
+                <input id="replyUser-${postId}" class="replyUser" placeholder="Your hog name" />
                 <input id="replyInput-${postId}" placeholder="Write a reply..." />
                 <button onclick="addReply('${postId}')">Send</button>
               </div>
