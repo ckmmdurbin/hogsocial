@@ -90,16 +90,15 @@
       margin-top: 5px;
     }
     .replyBox input {
-      width: 65%;
       padding: 6px;
       margin-right: 5px;
       font-size: 14px;
     }
     .replyBox .replyUser {
       width: 25%;
-      padding: 6px;
-      margin-right: 5px;
-      font-size: 14px;
+    }
+    .replyBox .replyText {
+      width: 65%;
     }
     .replyBox button {
       padding: 6px 10px;
@@ -203,7 +202,6 @@
   function addPost() {
     const text = document.getElementById('postBox').value;
     if (!text.trim()) return;
-
     const user = localUsername || "Anonymous Hog";
 
     db.collection("posts").add({
@@ -216,7 +214,6 @@
     .then(() => {
       document.getElementById('postBox').value = "";
       updateTopHog();
-
       db.collection("users").get()
         .then(snapshot => {
           snapshot.forEach(uDoc => {
@@ -236,7 +233,6 @@
       if (!doc.exists) return;
       const data = doc.data();
       const owner = data.user;
-
       postRef.update({ oinks: (currentOinks || 0) + 1 })
         .then(() => {
           if (owner) sendNotification(owner, `${localUsername || 'Someone'} oinked your post! 🐷`);
@@ -251,7 +247,6 @@
       if (!doc.exists) return;
       const data = doc.data();
       const owner = data.user;
-
       postRef.update({ boars: (currentBoars || 0) + 1 })
         .then(() => {
           if (owner) sendNotification(owner, `${localUsername || 'Someone'} boared your post! 🐗`);
@@ -326,13 +321,14 @@
               </div>
               <div id="replyDiv-${postId}" class="replyBox" style="display:none;">
                 <input id="replyUser-${postId}" class="replyUser" placeholder="Your hog name" />
-                <input id="replyInput-${postId}" placeholder="Write a reply..." />
+                <input id="replyInput-${postId}" class="replyText" placeholder="Write a reply..." />
                 <button onclick="addReply('${postId}')">Send</button>
               </div>
               <div id="replies-${postId}"></div>
             </div>
           `;
 
+          // ---- Real-time replies ----
           db.collection("posts").doc(postId).collection("replies")
             .orderBy("createdAt", "asc")
             .onSnapshot(replySnapshot => {
