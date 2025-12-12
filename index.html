@@ -103,17 +103,26 @@ const firebaseConfig = {
         const post = doc.data();
         const postId = doc.id;
 
-        feed.innerHTML += `
-          <div class="post">
-            <strong>${post.user}</strong><br>
-            ${post.text}<br>
-            <div class="oink" onclick="oink('${postId}', ${post.oinks || 0})">
-              🐷 ${post.oinks || 0} oinks
-            </div>
-          </div>
-        `;
-      });
-    });
+        let timeStr = "";
+try {
+  if (post.createdAt) timeStr = post.createdAt.toDate().toLocaleString();
+} catch(e) { timeStr = ""; }
+
+feed.innerHTML += `
+  <div class="post">
+    <strong>${escapeHtml(post.user || 'Anonymous Hog')}</strong><br>
+    <div style="margin-top:6px;">${escapeHtml(post.text || '')}</div>
+
+    <div class="timestamp">${timeStr}</div>
+
+    <div style="margin-top:8px;">
+      <span class="oink" onclick="oink('${postId}', ${post.oinks || 0})" title="Oink (upvote)">
+        🐷 ${post.oinks || 0} oinks
+      </span>
+    </div>
+  </div>
+`;
+
 </script>
 
 </body>
